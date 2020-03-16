@@ -4,6 +4,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.content.Intent;
 import android.os.Bundle;
 /**
  * Copyright Google Inc. All Rights Reserved.
@@ -25,6 +26,7 @@ import android.os.Bundle;
 //import android.support.v7.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.os.Trace;
 import android.text.Editable;
 import android.text.InputFilter;
 import android.text.TextWatcher;
@@ -146,41 +148,14 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        message_child_listner = new ChildEventListener() {
-            @Override
-            public void onChildAdded(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
 
-                 FriendlyMessage newmessage= dataSnapshot.getValue(FriendlyMessage.class); //get value function takes a class as an argument for details see: https://firebase.google.com/docs/reference/android/com/google/firebase/database/DataSnapshot
-                 mMessageAdapter.add(newmessage);
-            }
-
-            @Override
-            public void onChildChanged(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
-
-            }
-
-            @Override
-            public void onChildRemoved(@NonNull DataSnapshot dataSnapshot) {
-
-            }
-
-            @Override
-            public void onChildMoved(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
-
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError databaseError) {
-
-            }
-        };
-
-        db_ref.addChildEventListener(message_child_listner); // listener which is trigered whenever a new mesage is added
+        //set message child listener
+//        setMessageChildListener();
 
         //authentication sigin providers
-         final List<AuthUI.IdpConfig> providers = Arrays.asList(
-                                                         new AuthUI.IdpConfig.GoogleBuilder().build(),
-                                                            new AuthUI.IdpConfig.FacebookBuilder().build());
+        final List<AuthUI.IdpConfig> providers = Arrays.asList(
+                new AuthUI.IdpConfig.GoogleBuilder().build(),
+                new AuthUI.IdpConfig.FacebookBuilder().build());
 
         // listener which is trigered when the activity starts or resume
         firebaseAuthStateListener = new FirebaseAuth.AuthStateListener() {
@@ -193,6 +168,7 @@ public class MainActivity extends AppCompatActivity {
 
                 if (current_user!= null){
                     //means user signed in
+                    onSignIn(current_user.getDisplayName());
                     Toast.makeText(MainActivity.this," sign in successful !",Toast.LENGTH_LONG).show();
 
 
@@ -202,12 +178,13 @@ public class MainActivity extends AppCompatActivity {
                     //user not signed in
                     // now display the firebase sign in ui7jjj
                     Toast.makeText(MainActivity.this,"Not signed in !",Toast.LENGTH_LONG).show();
+                    onSignOut();
                     startActivityForResult(
                             AuthUI.getInstance()
-                                .createSignInIntentBuilder()
+                                    .createSignInIntentBuilder()
                                     .setAvailableProviders(providers)
-                            .setIsSmartLockEnabled(false)
-                                .build(),
+                                    .setIsSmartLockEnabled(false)
+                                    .build(),
                             RC_SIGIN);
 
 
@@ -221,6 +198,66 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    private void onSignOut() {
+        mUsername = ANONYMOUS;
+        mMessageAdapter.clear();
+        detachMessageChildListener();
+    }
+
+    private void detachMessageChildListener() {
+        if (message_child_listner!=null) {
+            db_ref.removeEventListener(message_child_listner);
+            message_child_listner = null;
+
+        }
+    }
+
+    private void onSignIn(String displayName) {
+        mUsername = displayName;
+//        attach child listener herte as in video
+        setMessageChildListener();
+        
+    }
+
+    private void setMessageChildListener() {
+
+        if (message_child_listner==null){
+
+            message_child_listner = new ChildEventListener() {
+                @Override
+                public void onChildAdded(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
+
+                    FriendlyMessage newmessage= dataSnapshot.getValue(FriendlyMessage.class); //get value function takes a class as an argument for details see: https://firebase.google.com/docs/reference/android/com/google/firebase/database/DataSnapshot
+                    mMessageAdapter.add(newmessage);
+                }
+
+                @Override
+                public void onChildChanged(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
+
+                }
+
+                @Override
+                public void onChildRemoved(@NonNull DataSnapshot dataSnapshot) {
+
+                }
+
+                @Override
+                public void onChildMoved(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
+
+                }
+
+                @Override
+                public void onCancelled(@NonNull DatabaseError databaseError) {
+
+                }
+            };
+
+            db_ref.addChildEventListener(message_child_listner); // listener which is trigered whenever a new mesage is added
+
+        }
+
+    }
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
@@ -230,7 +267,21 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        return super.onOptionsItemSelected(item);
+
+        switch (item.getItemId()){
+
+            case R.id.sign_out_menu:
+                AuthUI.getInstance().signOut(this);
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+
+        }
+
+
+
+
+
     }
 
     @Override
@@ -245,5 +296,37 @@ public class MainActivity extends AppCompatActivity {
         super.onPause();
         //when pause, remove the authentication state listener
         firebaseAuth.removeAuthStateListener(firebaseAuthStateListener);
+//    as in video, detach listener and clear teh adapter
+//        detachMessageChildListener();
+//        mMessageAdapter.clear();
+
+
+    }
+
+    /**
+     * Dispatch incoming result to the correct fragment.
+     *
+     * @param requestCode
+     * @param resultCode
+     * @param data
+     */
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == RC_SIGIN){
+
+            if (resultCode == RESULT_OK){
+                Toast.makeText(MainActivity.this,"signed in now !",Toast.LENGTH_SHORT).show();
+            }
+            else if ( resultCode == RESULT_CANCELED) {
+
+                Toast.makeText(MainActivity.this,"cancalled",Toast.LENGTH_SHORT).show();
+                finish();
+            }
+        }
+
+
+
     }
 }
