@@ -31,11 +31,16 @@ public class MessageAdapter extends ArrayAdapter<FriendlyMessage> {
 
         boolean isPhoto = message.getPhotoUrl() != null;
         if (isPhoto) {
+            System.out.println(" is photo,"+message.getPhotoUrl());
+
             messageTextView.setVisibility(View.GONE);
             photoImageView.setVisibility(View.VISIBLE);
+            int pic = R.drawable.pic;
+//            photoImageView.setImageResource(pic);
             Glide.with(photoImageView.getContext())
                     .load(message.getPhotoUrl())
                     .into(photoImageView);
+            System.out.println("done");
         } else {
             messageTextView.setVisibility(View.VISIBLE);
             photoImageView.setVisibility(View.GONE);

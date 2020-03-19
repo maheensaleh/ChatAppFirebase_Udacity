@@ -40,6 +40,8 @@ dependencies {
     implementation 'com.firebaseui:firebase-ui-auth:6.2.0'
     //firebase facebook authentication
     implementation 'com.facebook.android:facebook-android-sdk:5.15.3'
+    // firebase storage
+    implementation 'com.google.firebase:firebase-storage:19.1.1'
 
 
 

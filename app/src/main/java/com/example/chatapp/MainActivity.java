@@ -5,6 +5,8 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Intent;
+import android.net.Uri;
+import android.net.http.SslCertificate;
 import android.os.Bundle;
 /**
  * Copyright Google Inc. All Rights Reserved.
@@ -43,6 +45,7 @@ import android.widget.Toast;
 
 import com.firebase.ui.auth.AuthUI;
 import com.google.android.gms.auth.api.Auth;
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.ChildEventListener;
@@ -52,6 +55,9 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.facebook.FacebookSdk;
 import com.facebook.appevents.AppEventsLogger;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageReference;
+import com.google.firebase.storage.UploadTask;
 
 
 import java.util.ArrayList;
@@ -63,6 +69,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
     private  static  final int RC_SIGIN = 1;
+    private static  final int RC_PHOTO_PICK = 2;
     public static final String ANONYMOUS = "anonymous";
     public static final int DEFAULT_MSG_LENGTH_LIMIT = 1000;
 
@@ -78,6 +85,8 @@ public class MainActivity extends AppCompatActivity {
     private FirebaseAuth firebaseAuth;
     private FirebaseAuth.AuthStateListener firebaseAuthStateListener;
     private String mUsername;
+    private FirebaseStorage firebaseStorage;
+    private StorageReference stroage_ref;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -88,6 +97,8 @@ public class MainActivity extends AppCompatActivity {
         database = FirebaseDatabase.getInstance(); // access to entire database
         db_ref = database.getReference().child("messsages");// access  point to a particular part of the db , here 'messages'
         firebaseAuth = FirebaseAuth.getInstance(); // initiate the authentication objject
+        firebaseStorage = FirebaseStorage.getInstance(); //initiate the storage
+        stroage_ref = firebaseStorage.getReference().child("ChatPhotos"); // get a reference to the storage
 
         mUsername = ANONYMOUS;
 
@@ -111,6 +122,10 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 // TODO: Fire an intent to show an image picker
+                Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+                intent.setType("image/jpeg");
+                intent.putExtra(Intent.EXTRA_LOCAL_ONLY, true);
+                startActivityForResult(Intent.createChooser(intent,"Complete with"),RC_PHOTO_PICK);
             }
         });
 
@@ -228,7 +243,9 @@ public class MainActivity extends AppCompatActivity {
                 public void onChildAdded(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
 
                     FriendlyMessage newmessage= dataSnapshot.getValue(FriendlyMessage.class); //get value function takes a class as an argument for details see: https://firebase.google.com/docs/reference/android/com/google/firebase/database/DataSnapshot
+                    System.out.println("5");
                     mMessageAdapter.add(newmessage);
+                    System.out.println(newmessage);
                 }
 
                 @Override
@@ -324,6 +341,34 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(MainActivity.this,"cancalled",Toast.LENGTH_SHORT).show();
                 finish();
             }
+        }
+
+        else if ( requestCode == RC_PHOTO_PICK && resultCode == RESULT_OK){
+            System.out.println("1");
+            Uri selected_photo = data.getData();
+            final StorageReference photoRef = stroage_ref.child(selected_photo.getLastPathSegment());
+            //upload file to firebase strorage
+            System.out.println("2");
+
+            photoRef.putFile(selected_photo).addOnSuccessListener(
+                    this, new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                        @Override
+                        public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                            photoRef.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
+                                @Override
+                                public void onSuccess(Uri uri) {
+                                    Uri my_uri = uri;
+                                    FriendlyMessage current_message = new FriendlyMessage(null,mUsername,my_uri.toString());
+                                    db_ref.push().setValue(current_message);
+
+                                }
+                            });
+
+
+                        }
+                    }
+            );
+
         }
 
 
